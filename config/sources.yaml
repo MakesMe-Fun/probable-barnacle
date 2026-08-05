@@ -1,0 +1,170 @@
+# 뉴스 소스 레지스트리
+#
+# type: 현재 MVP에서는 "rss"만 구현되어 있습니다.
+#       news_api / social / blog / gov_press는 이후 collectors/에 구현체를 추가하고
+#       registry.py의 COLLECTOR_MAP에 등록하면 바로 사용할 수 있습니다.
+#
+# reliability.tier: very_high | high | medium | low | unverified
+# reliability.base_score: 0~100, 랭킹 계산에 사용됩니다.
+#
+# ⚠️ 검증 상태 안내
+#   verified: true 는 실제로 RSS를 가져와 파싱까지 확인했다는 뜻입니다.
+#   2026-08-05 기준으로 enabled 상태인 소스는 전부 수집을 확인했습니다.
+#   로그에 "RSS 파싱 실패"가 뜨면 HTTP 상태가 같이 찍히니 그걸 보고 판단하세요.
+#     403 -> 봇 차단. rss_collector가 이미 브라우저 UA를 쓰므로 대체 소스를 찾는 게 낫습니다.
+#     404 -> URL 변경. 이 파일에서 endpoint만 고치면 되고 코드는 건드릴 필요 없습니다.
+
+sources:
+  # ── 국내 ──────────────────────────────────────────────
+  - id: yonhap_economy
+    name: "연합뉴스"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    endpoint: "https://www.yna.co.kr/rss/economy.xml"
+    category_tags: ["경제", "정치", "사회"]
+    reliability:
+      tier: "very_high"
+      base_score: 92
+    verified: false
+    enabled: true
+
+  # 한국경제는 RSS 엔드포인트가 살아있지만 WAF가 브라우저 User-Agent까지
+  # 403으로 막는다(2026-08-05 확인). 우회할 방법이 없어 비활성화하고,
+  # 같은 경제지 자리를 매일경제로 대체했다.
+  - id: hankyung_all
+    name: "한국경제"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    endpoint: "https://www.hankyung.com/feed/all-news"
+    category_tags: ["경제", "정치", "IT·과학"]
+    reliability:
+      tier: "high"
+      base_score: 82
+    verified: false
+    enabled: false
+
+  - id: mk_economy
+    name: "매일경제"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    endpoint: "https://www.mk.co.kr/rss/30100041/"
+    category_tags: ["경제"]
+    reliability:
+      tier: "high"
+      base_score: 82
+    verified: true
+    enabled: true
+
+  - id: khan_all
+    name: "경향신문"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    endpoint: "https://www.khan.co.kr/rss/rssdata/total_news.xml"
+    category_tags: ["정치", "사회", "경제"]
+    reliability:
+      tier: "high"
+      base_score: 78
+    verified: true
+    enabled: true
+
+  - id: etnews_it
+    name: "전자신문"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    endpoint: "https://rss.etnews.com/Section901.xml"
+    category_tags: ["IT·과학", "경제"]
+    reliability:
+      tier: "high"
+      base_score: 80
+    verified: true
+    enabled: true
+
+  - id: chosun_all
+    name: "조선일보"
+    country: "KR"
+    language: "ko"
+    type: "rss"
+    # ?outputType=xml 이 없으면 404가 난다.
+    endpoint: "https://www.chosun.com/arc/outboundfeeds/rss/?outputType=xml"
+    category_tags: ["정치", "사회", "국제"]
+    reliability:
+      tier: "high"
+      base_score: 78
+    verified: true
+    enabled: true
+
+  # ── 해외 ──────────────────────────────────────────────
+  - id: bbc_world
+    name: "BBC World"
+    country: "GB"
+    language: "en"
+    type: "rss"
+    endpoint: "http://feeds.bbci.co.uk/news/world/rss.xml"
+    category_tags: ["국제"]
+    reliability:
+      tier: "very_high"
+      base_score: 95
+    verified: true
+    enabled: true
+
+  - id: techcrunch
+    name: "TechCrunch"
+    country: "US"
+    language: "en"
+    type: "rss"
+    endpoint: "https://techcrunch.com/feed/"
+    category_tags: ["IT·과학"]
+    reliability:
+      tier: "high"
+      base_score: 80
+    verified: false
+    enabled: true
+
+  - id: theverge
+    name: "The Verge"
+    country: "US"
+    language: "en"
+    type: "rss"
+    endpoint: "https://www.theverge.com/rss/index.xml"
+    category_tags: ["IT·과학"]
+    reliability:
+      tier: "high"
+      base_score: 78
+    verified: false
+    enabled: true
+
+  # ── 기업 공식 블로그 (예시, 기본 비활성화) ──────────────
+  - id: openai_blog
+    name: "OpenAI Blog"
+    country: "US"
+    language: "en"
+    type: "rss"
+    endpoint: "https://openai.com/blog/rss.xml"
+    category_tags: ["AI", "LLM", "OpenAI"]
+    reliability:
+      tier: "very_high"
+      base_score: 90
+      topic_boost:
+        AI: 8
+        LLM: 8
+    verified: false
+    enabled: false
+
+  # ── 향후 확장 예시 (미구현 타입, enabled: false) ─────────
+  - id: reddit_llm_example
+    name: "r/LocalLLaMA"
+    country: "international"
+    language: "en"
+    type: "social"        # SocialCollector 구현 후 사용 가능
+    endpoint: "reddit://r/LocalLLaMA/hot"
+    category_tags: ["AI", "LLM"]
+    reliability:
+      tier: "low"
+      base_score: 25
+    verified: false
+    enabled: false

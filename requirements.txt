@@ -1,0 +1,11 @@
+feedparser>=6.0
+google-genai>=1.0
+groq>=0.9
+sentence-transformers>=3.0
+# torch 2.13은 이 환경(Windows/Ryzen)에서 c10.dll 초기화에 실패한다
+# (OSError WinError 1114). CPU 휠로 바꿔도 같아서 버전을 묶어둔다.
+torch<2.7
+numpy>=1.26
+PyYAML>=6.0
+python-dotenv>=1.0
+requests>=2.31

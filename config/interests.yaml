@@ -1,0 +1,47 @@
+# 사용자 관심사 설정
+#
+# keywords: 이벤트의 title/details/entities와 매칭해 개인화 점수를 올리는 키워드
+# weight: 키워드별 가중치 (기본 1.0, 특히 더 보고 싶은 주제는 높게)
+#
+# 이 파일은 MVP에서는 정적으로 사용되지만, 향후 interaction_log 데이터가
+# 쌓이면 자동으로 가중치를 조정하는 "관심사 자동 학습" 기능이 이 파일 대신
+# (혹은 이 파일을 기본값으로 삼아) DB 기반 가중치로 전환될 예정입니다.
+
+interests:
+  - keyword: "AI"
+    weight: 1.5
+  - keyword: "LLM"
+    weight: 1.5
+  - keyword: "OpenAI"
+    weight: 1.5
+  - keyword: "Anthropic"
+    weight: 1.5
+  - keyword: "Google"
+    weight: 1.2
+  - keyword: "NVIDIA"
+    weight: 1.4
+  - keyword: "미국 정책"
+    weight: 1.2
+  - keyword: "캐나다 이민"
+    weight: 1.3
+  - keyword: "반도체"
+    weight: 1.4
+  - keyword: "경제"
+    weight: 1.0
+
+# 신뢰도 낮은(low) 소스로만 구성된 이벤트를 "그 외 주요 이슈"에서 제외할지 여부.
+# 관심사 키워드에 걸린 이벤트에는 이 필터를 적용하지 않는다
+# (관심 키워드는 소스가 약해도 빠짐없이 보는 게 목적이므로).
+exclude_low_reliability_only_from_top: true
+
+# 개수 상한. 기본은 둘 다 null = 제한 없음이다.
+# "오늘 이슈가 많은 날"에 볼 게 잘려나가지 않도록, 무엇을 볼지는 개수가 아니라
+# 기준(키워드 매칭 / 신뢰도)으로만 정한다. 숫자를 넣으면 그만큼에서 자르고
+# 잘린 사실을 로그에 남긴다. API 한도에 자꾸 걸릴 때만 쓸 것.
+max_interest_events: null   # 관심 키워드에 걸린 이벤트
+top_general_events: null    # 키워드엔 안 걸렸지만 중요한 이벤트
+
+# Discord 알림으로 보낼 최대 건수.
+# 관심사를 먼저 채우고 남는 자리를 그 외 이슈로 채웁니다.
+# HTML 리포트에는 전체가 다 들어가고, 이건 폰 알림 분량만 정합니다.
+discord_max_events: 20
