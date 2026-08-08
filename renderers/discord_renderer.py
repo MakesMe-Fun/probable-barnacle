@@ -110,7 +110,12 @@ def _build_embed(payload: dict) -> dict:
 
 
 def _build_summary(
-    interest: list[dict], general: list[dict], sending: int, total: int, has_report: bool
+    interest: list[dict],
+    general: list[dict],
+    sending: int,
+    total: int,
+    has_report: bool,
+    report_url: str | None,
 ) -> str:
     weekday = ["월", "화", "수", "목", "금", "토", "일"][datetime.now().weekday()]
     date_str = datetime.now().strftime(f"%m월 %d일 ({weekday})")
@@ -130,7 +135,12 @@ def _build_summary(
     ]
     if sending < total:
         lines.append(f"_아래 카드는 상위 {sending}건입니다 (전체 {total}건)._")
-    if has_report:
+
+    # 링크가 있으면 그게 최선이다(폰에서 한 번만 누르면 열린다).
+    # 첨부파일은 다운로드해서 열어야 해서 번거로우므로, 링크가 있을 때는 언급하지 않는다.
+    if report_url:
+        lines.append(f"\n**📰 전체 리포트 보기**\n{report_url}")
+    elif has_report:
         lines.append("_📎 첨부된 HTML을 열면 배경·용어·찬반 관점까지 전체 리포트를 볼 수 있습니다._")
     return "\n".join(lines)
 
@@ -141,6 +151,7 @@ def send_to_discord(
     max_notifications: int | None = None,
     score_threshold: float | None = None,
     report_path: str | Path | None = None,
+    report_url: str | None = None,
 ) -> None:
     """관심사 우선으로 Discord에 보낸다.
 
@@ -171,15 +182,20 @@ def send_to_discord(
         logger.info("Discord로 보낼 이벤트가 없습니다.")
         return
 
-    # 전체 리포트는 첨부파일로 같이 보낸다. 웹훅 첨부 상한(8MB)을 넘으면 생략한다.
-    attachment = Path(report_path) if report_path else None
-    if attachment and (not attachment.exists() or attachment.stat().st_size > MAX_ATTACHMENT_BYTES):
-        if attachment.exists():
-            logger.info("HTML 리포트가 %.1fMB로 첨부 상한을 넘어 생략합니다.",
-                        attachment.stat().st_size / 1_048_576)
-        attachment = None
+    # 웹 링크가 있으면 첨부는 굳이 안 보낸다. 폰에서 링크가 훨씬 편하고,
+    # 같은 내용을 두 번 보내면 메시지만 지저분해진다.
+    attachment = None
+    if report_path and not report_url:
+        attachment = Path(report_path)
+        if not attachment.exists() or attachment.stat().st_size > MAX_ATTACHMENT_BYTES:
+            if attachment.exists():
+                logger.info("HTML 리포트가 %.1fMB로 첨부 상한을 넘어 생략합니다.",
+                            attachment.stat().st_size / 1_048_576)
+            attachment = None
 
-    summary = _build_summary(interest, general, len(to_send), len(eligible), attachment is not None)
+    summary = _build_summary(
+        interest, general, len(to_send), len(eligible), attachment is not None, report_url
+    )
     if not _post(webhook_url, {"content": summary}, file_path=attachment):
         return
     time.sleep(REQUEST_INTERVAL_SEC)

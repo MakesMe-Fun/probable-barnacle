@@ -151,6 +151,14 @@ def main(open_browser: bool = True) -> None:
     filepath.write_text(html, encoding="utf-8")
     logger.info("HTML 리포트 생성 완료: %s", filepath)
 
+    # GitHub Pages에 게시할 때는 그날 리포트의 웹 주소를 알림에 넣는다.
+    # 폰에서 첨부파일을 받아 여는 것보다 링크 한 번이 훨씬 편하다.
+    # 예: REPORT_BASE_URL=https://makesme-fun.github.io/probable-barnacle
+    report_base = os.environ.get("REPORT_BASE_URL", "").strip().rstrip("/")
+    report_url = (
+        f"{report_base}/{date.today().strftime('%Y%m%d')}.html" if report_base else None
+    )
+
     discord_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
     if discord_webhook:
         discord_renderer.send_to_discord(
@@ -158,6 +166,7 @@ def main(open_browser: bool = True) -> None:
             event_payloads,
             max_notifications=interests_cfg.get("discord_max_events"),
             report_path=filepath,
+            report_url=report_url,
         )
 
     if open_browser:

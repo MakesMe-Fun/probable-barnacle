@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>브리핑 보관함</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Pretendard&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --bg:#0B0B0C; --ink:#EDEDED; --ink-soft:#9A9A9E; --rule:#2B2B2E; --accent:#D8C08A; }
+  body { background:var(--bg); color:var(--ink); font-family:'Pretendard',-apple-system,sans-serif;
+    max-width:480px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-family:'Noto Serif KR',serif; font-weight:900; font-size:26px; letter-spacing:-0.02em; }
+  .sub { font-size:12px; color:var(--ink-soft); margin-top:6px; padding-bottom:18px;
+    border-bottom:1px solid var(--rule); }
+  a.item { display:flex; align-items:baseline; gap:10px; padding:15px 2px;
+    border-bottom:1px solid var(--rule); color:var(--ink); text-decoration:none; }
+  a.item:first-of-type .date { color:var(--accent); }
+  .date { font-family:'Noto Serif KR',serif; font-weight:700; font-size:16px; }
+  .weekday { font-size:12px; color:var(--ink-soft); }
+  .latest { margin-left:auto; font-size:10px; font-weight:700; letter-spacing:0.06em;
+    background:var(--accent); color:#1a1a1a; padding:2px 7px; border-radius:2px; }
+  footer { margin-top:26px; font-size:11px; color:var(--ink-soft); text-align:center; }
+</style>
+</head>
+<body>
+  <h1>브리핑 보관함</h1>
+  <div class="sub">매일 아침 6시 · 총 1일치</div>
+  <a class="item" href="20260805.html"><span class="date">2026년 8월 5일</span><span class="weekday">수요일</span><span class="latest">최신</span></a>
+  <footer>개인 AI 뉴스 비서</footer>
+</body>
+</html>
