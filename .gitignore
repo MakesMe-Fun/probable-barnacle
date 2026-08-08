@@ -1,0 +1,13 @@
+# API 키가 들어있다. 절대 커밋하지 말 것.
+# GitHub Actions에서는 저장소 Settings > Secrets 에 넣고 워크플로가 주입한다.
+.env
+.env.*
+!.env.example
+
+data/*.db
+output/*.html
+logs/
+__pycache__/
+*.pyc
+.venv/
+venv/

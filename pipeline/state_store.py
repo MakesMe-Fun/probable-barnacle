@@ -75,15 +75,13 @@ CREATE TABLE IF NOT EXISTS briefing_run (
 );
 """
 
-ENTITY_OVERLAP_MATCH_THRESHOLD = 1  # 겹치는 엔티티 이름이 이 개수 이상이면 같은 사건의 업데이트로 간주
+# 겹치는 엔티티 이름이 이 개수 이상이면 같은 사건의 업데이트로 간주.
+#
+# 1이었을 때는 첫 실행에서 79건 중 78건이 "업데이트"로 찍혔다. "한국", "미국",
+# "구글" 같은 흔한 엔티티가 하나만 겹쳐도 매칭돼서다. 서로 다른 사건이 같은
+# story로 묶이는 것도 같은 원인이라 2로 올린다.
+ENTITY_OVERLAP_MATCH_THRESHOLD = 2
 LOOKBACK_DAYS = 5
-
-# 참고: 지금은 엔티티 이름 1개만 겹쳐도 업데이트로 판정하는 단순 규칙이다.
-# entities 추출이 비교적 구체적인 고유명사(회사/인물명) 위주라 오탐이 크지 않지만,
-# "Google", "미국"처럼 흔한 엔티티가 다수 이벤트에 등장하면 서로 다른 사건이 같은
-# story로 묶이는 오탐이 늘어날 수 있다. 실사용하면서 오탐이 잦으면 이 값을 2로
-# 올리거나, 엔티티 겹침 대신(혹은 함께) 제목 임베딩 유사도를 추가로 결합하는 걸
-# 추천한다 (설계 문서 4절의 Event->Story 연결 고도화와 같은 방향).
 
 
 def init_db(db_path: str) -> sqlite3.Connection:
@@ -93,12 +91,24 @@ def init_db(db_path: str) -> sqlite3.Connection:
     return conn
 
 
-def _recent_events(conn: sqlite3.Connection, lookback_days: int = LOOKBACK_DAYS) -> list[dict]:
+def _recent_events(
+    conn: sqlite3.Connection,
+    lookback_days: int = LOOKBACK_DAYS,
+    before: str | None = None,
+) -> list[dict]:
+    """최근 lookback_days 안에 저장된 이벤트.
+
+    before(이번 실행 시작 시각)를 주면 그 이후에 저장된 건 제외한다. 이게 없으면
+    같은 실행에서 방금 저장한 이벤트끼리 비교하게 되어, 첫 브리핑부터 거의 전부가
+    '업데이트'로 찍힌다. "업데이트"는 지난 브리핑에서 이미 본 사건이라는 뜻이어야 한다.
+    """
     cutoff = (date.today() - timedelta(days=lookback_days)).isoformat()
-    rows = conn.execute(
-        "SELECT id, story_id, title, entities_json, category_tags_json FROM events WHERE event_date >= ?",
-        (cutoff,),
-    ).fetchall()
+    sql = "SELECT id, story_id, title, entities_json, category_tags_json FROM events WHERE event_date >= ?"
+    params: list = [cutoff]
+    if before:
+        sql += " AND created_at < ?"
+        params.append(before)
+    rows = conn.execute(sql, params).fetchall()
     result = []
     for r in rows:
         result.append(
@@ -114,12 +124,17 @@ def _recent_events(conn: sqlite3.Connection, lookback_days: int = LOOKBACK_DAYS)
 
 
 def determine_issue_type_and_story(
-    conn: sqlite3.Connection, event_payload: dict, entity_names: list[str]
+    conn: sqlite3.Connection,
+    event_payload: dict,
+    entity_names: list[str],
+    run_started_at: str | None = None,
 ) -> tuple[str, str]:
     """entity 겹침 기준으로 신규/업데이트를 판별하고, 매칭되면 기존 story_id를
     재사용하며, 매칭되지 않으면 새 story_id를 만들어 반환한다.
+
+    run_started_at을 넘기면 이번 실행에서 저장한 이벤트는 비교 대상에서 뺀다.
     """
-    recent = _recent_events(conn)
+    recent = _recent_events(conn, before=run_started_at)
     this_entities = set(entity_names)
 
     best_match = None

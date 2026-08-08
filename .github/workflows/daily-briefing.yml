@@ -1,10 +1,14 @@
 name: 아침 브리핑
 
+# 한국 오전 6시 = UTC 21:00 (전날).
+# GitHub Actions의 cron은 부하에 따라 5~20분 늦게 시작될 수 있다(무료 티어 특성).
+# 정확히 6시가 필요하면 유료 러너나 별도 서버가 필요하다.
 on:
   schedule:
     - cron: '0 21 * * *'
-  workflow_dispatch:
+  workflow_dispatch:        # 저장소 Actions 탭에서 수동 실행용
 
+# 이전 실행이 아직 돌고 있으면 새로 시작하지 않는다(중복 알림 방지).
 concurrency:
   group: daily-briefing
   cancel-in-progress: false
@@ -25,9 +29,12 @@ jobs:
       - name: 의존성 설치
         run: |
           python -m pip install --upgrade pip
+          # PyTorch는 CPU 휠로 받는다. 기본(CUDA) 빌드는 2GB가 넘어서
+          # 매 실행마다 받으면 시간이 크게 늘어난다.
           pip install --index-url https://download.pytorch.org/whl/cpu "torch<2.7"
           pip install -r requirements.txt
 
+      # 임베딩 모델(약 500MB)을 매번 내려받지 않도록 캐시한다.
       - name: 임베딩 모델 캐시
         uses: actions/cache@v4
         with:
@@ -39,10 +46,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           PYTHONIOENCODING: utf-8
           TZ: Asia/Seoul
         run: python main.py --no-browser
 
+      # HTML 리포트를 아티팩트로 남겨둔다. Discord 알림은 요약본이라,
+      # 전체를 보고 싶으면 Actions 실행 화면에서 내려받으면 된다.
       - name: HTML 리포트 보관
         if: always()
         uses: actions/upload-artifact@v4
@@ -52,6 +62,8 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+      # 실패하면 조용히 지나가지 않게 Discord로 알린다.
+      # (아침에 알림이 안 오면 그게 성공인지 실패인지 알 수 없으므로)
       - name: 실패 시 Discord 알림
         if: failure()
         env:
@@ -59,6 +71,6 @@ jobs:
         run: |
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             curl -sS -H "Content-Type: application/json" \
-              -d "{\"content\":\"⚠️ 아침 브리핑 실패. 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+              -d "{\"content\":\"⚠️ 아침 브리핑 생성에 실패했습니다. 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
               "$DISCORD_WEBHOOK_URL"
           fi

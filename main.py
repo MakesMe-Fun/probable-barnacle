@@ -132,7 +132,7 @@ def main(open_browser: bool = True) -> None:
         payload["event_date"] = today
         payload["created_at"] = now
         issue_type, story_id = state_store.determine_issue_type_and_story(
-            conn, payload, payload["entities"].all_names()
+            conn, payload, payload["entities"].all_names(), run_started_at=now
         )
         payload["issue_type"] = issue_type
         payload["story_id"] = story_id
@@ -156,7 +156,8 @@ def main(open_browser: bool = True) -> None:
         discord_renderer.send_to_discord(
             discord_webhook,
             event_payloads,
-            max_notifications=interests_cfg.get("discord_max_events", 20),
+            max_notifications=interests_cfg.get("discord_max_events"),
+            report_path=filepath,
         )
 
     if open_browser:

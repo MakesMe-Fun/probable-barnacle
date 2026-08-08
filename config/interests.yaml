@@ -41,7 +41,8 @@ exclude_low_reliability_only_from_top: true
 max_interest_events: null   # 관심 키워드에 걸린 이벤트
 top_general_events: null    # 키워드엔 안 걸렸지만 중요한 이벤트
 
-# Discord 알림으로 보낼 최대 건수.
-# 관심사를 먼저 채우고 남는 자리를 그 외 이슈로 채웁니다.
-# HTML 리포트에는 전체가 다 들어가고, 이건 폰 알림 분량만 정합니다.
-discord_max_events: 20
+# Discord 알림으로 보낼 최대 건수. null이면 전부 보냅니다(기본).
+# 폰에서는 HTML 리포트를 열기가 번거로우므로 알림 자체가 원본이어야 합니다.
+# 알림이 너무 많다 싶으면 숫자를 넣으세요 (예: 30).
+# 어느 쪽이든 전체 리포트 HTML은 첫 메시지에 파일로 첨부됩니다.
+discord_max_events: null
