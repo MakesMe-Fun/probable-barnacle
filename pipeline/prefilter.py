@@ -57,6 +57,10 @@ class InterestMatcher:
 
     공백이 들어간 키워드("미국 정책")는 토큰이 전부 등장해야 매칭으로 본다.
     단순 부분 문자열로 보면 "미국의 정책" 같은 표현을 놓치기 때문이다.
+
+    aliases에 다른 표기를 적어두면 그중 하나만 걸려도 매칭으로 친다. 한국 기사는
+    'NVIDIA'가 아니라 '엔비디아'라고 쓰기 때문에, 이게 없으면 국내 기사를 통째로
+    놓친다. 표시는 대표 keyword 하나로 통일된다.
     """
 
     def __init__(self, interests_cfg: dict):
@@ -65,23 +69,28 @@ class InterestMatcher:
             keyword = item.get("keyword", "").strip()
             if not keyword:
                 continue
+            spellings = [keyword] + [a.strip() for a in item.get("aliases", []) if a.strip()]
             self.entries.append(
                 {
                     "keyword": keyword,
                     "weight": float(item.get("weight", 1.0)),
-                    "patterns": [_compile_token(t) for t in keyword.split()],
+                    # 표기별로 토큰 패턴 묶음을 하나씩 만든다.
+                    # 표기 안에서는 AND(토큰 전부), 표기끼리는 OR.
+                    "spellings": [[_compile_token(t) for t in s.split()] for s in spellings],
                 }
             )
         # 가중치가 큰 키워드가 앞에 오도록 정렬 (그룹핑 기준으로도 쓰인다)
         self.entries.sort(key=lambda e: -e["weight"])
 
+    @staticmethod
+    def _matches(entry: dict, text: str) -> bool:
+        return any(
+            all(p.search(text) for p in patterns) for patterns in entry["spellings"]
+        )
+
     def match(self, text: str) -> list[str]:
         """등장한 키워드 목록을 가중치 내림차순으로 반환."""
-        return [
-            e["keyword"]
-            for e in self.entries
-            if all(p.search(text) for p in e["patterns"])
-        ]
+        return [e["keyword"] for e in self.entries if self._matches(e, text)]
 
     def weight_of(self, keyword: str) -> float:
         for e in self.entries:

@@ -62,7 +62,13 @@ DEFAULT_RPM = 5
 # Gemini는 '요청 수'로 과금하므로 출력 토큰을 아낄 이유가 없다. 넉넉히 잡아
 # 응답이 잘려 JSON 파싱에 실패하는 쪽을 막는 게 이득이다.
 # (Groq은 정반대라 GroqClient에서 따로 낮게 잡는다)
-GEMINI_MAX_OUTPUT_TOKENS = 8192
+# 사건 하나가 약 1,800토큰이므로 배치 8건이면 15,000 안팎. 여유를 둔다.
+GEMINI_MAX_OUTPUT_TOKENS = 32768
+
+# 한 번의 호출에 사건 몇 개를 묶을지.
+# 하루 한도가 '요청 수'라 묶을수록 하루에 볼 수 있는 사건이 배로 늘어난다.
+# 너무 키우면 응답이 길어져 일부가 잘리거나 사건끼리 섞일 위험이 커진다.
+GEMINI_BATCH_SIZE = 8
 
 # Groq은 실제 출력량이 아니라 max_tokens '예약분'을 일일 토큰 한도에서 깎는다.
 # 429의 Requested 값으로 확인: max_tokens 4000일 때 4821, 2500일 때 3321
@@ -74,7 +80,9 @@ GROQ_MAX_OUTPUT_TOKENS = 2500
 # 대략 이 정도가 하루 최대 호출 수다.
 GROQ_FREE_REQUESTS_PER_DAY = 100_000 // (821 + GROQ_MAX_OUTPUT_TOKENS)
 
-MAX_RETRIES = 3
+MAX_RETRIES = 4
+# 503(과부하) 재시도 간격. 2배씩 늘어난다: 8초 -> 16초 -> 32초
+SERVER_ERROR_BACKOFF_SEC = 8.0
 
 
 class QuotaExhausted(Exception):
@@ -113,6 +121,7 @@ class _RateLimiter:
 class GeminiClient:
     name = "Gemini"
     max_output_tokens = GEMINI_MAX_OUTPUT_TOKENS
+    batch_size = GEMINI_BATCH_SIZE
 
     def __init__(self, api_key: str, models: list[str] | None = None, rpm: int | None = None):
         from google import genai
@@ -222,6 +231,19 @@ class GeminiClient:
                 logger.info("  Gemini 분당 제한, %.0f초 후 재시도 (%d/%d)", delay, attempt, MAX_RETRIES)
                 time.sleep(delay)
                 continue
+            except errors.ServerError as e:
+                # 503 UNAVAILABLE(모델 과부하)은 무료 티어에서 흔하고 대개 일시적이다.
+                # 그냥 건너뛰면 사건이 통째로 날아가고, 배치 실패 시 쪼개 재시도하는
+                # 로직과 겹쳐 같은 오류를 여러 번 맞으며 호출만 낭비한다.
+                if attempt >= MAX_RETRIES:
+                    logger.warning("Gemini 서버 오류 재시도 %d회 실패, 건너뜁니다: %s",
+                                   MAX_RETRIES, str(e)[:150])
+                    return None
+                delay = SERVER_ERROR_BACKOFF_SEC * (2 ** (attempt - 1))
+                logger.info("  Gemini 서버 혼잡(%s), %.0f초 후 재시도 (%d/%d)",
+                            getattr(e, "code", "5xx"), delay, attempt, MAX_RETRIES)
+                time.sleep(delay)
+                continue
             except Exception as e:  # noqa: BLE001
                 logger.warning("Gemini 호출 실패, 이 클러스터는 건너뜁니다: %s", e)
                 return None
@@ -238,6 +260,9 @@ class GroqClient:
     name = "Groq"
     max_output_tokens = GROQ_MAX_OUTPUT_TOKENS
     daily_request_budget = GROQ_FREE_REQUESTS_PER_DAY
+    # Groq은 토큰으로 제한되므로 묶어도 이득이 없다. 오히려 출력 상한이 낮아
+    # 여러 건을 담으면 잘린다.
+    batch_size = 1
 
     def __init__(self, api_key: str, model: str = GROQ_MODEL):
         from groq import Groq

@@ -26,7 +26,16 @@ from models.schema import RawArticle
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIME_WINDOW_HOURS = 36
-DEFAULT_SIMILARITY_THRESHOLD = 0.72
+
+# 임베딩 모델(multilingual-e5-base) 기준으로 실제 수집 데이터에 돌려 잡은 값이다.
+# 쌍끼리만 비교하면 0.84가 경계지만, 아래 그리디 클러스터링은 센트로이드를 멤버
+# 평균으로 갱신해서 클러스터가 커질수록 중심이 '평균적인 뉴스'로 뭉개진다. 그러면
+# 무관한 기사까지 끌어당기므로 실제로는 더 높게 잡아야 한다.
+#   0.84 -> 클러스터 9개 (8개 매체가 통째로 한 덩어리)
+#   0.88 -> 114개 (부동산 클러스터에 해수부 세액공제가 섞임)
+#   0.90 -> 246개 (환율/부동산세제/신용사면 등 같은 사건만 정확히 묶임)
+# 모델을 바꾸면 이 값도 반드시 다시 재야 한다.
+DEFAULT_SIMILARITY_THRESHOLD = 0.90
 
 
 def _cosine_sim(a: list[float], b: list[float]) -> float:

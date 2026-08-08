@@ -10,24 +10,35 @@
 interests:
   - keyword: "AI"
     weight: 1.5
+    aliases: ["인공지능", "에이아이"]
   - keyword: "LLM"
     weight: 1.5
+    aliases: ["거대언어모델", "언어모델", "생성형 AI", "생성형 인공지능"]
   - keyword: "OpenAI"
     weight: 1.5
+    aliases: ["오픈AI", "오픈에이아이", "챗GPT", "ChatGPT", "챗지피티"]
   - keyword: "Anthropic"
     weight: 1.5
+    aliases: ["앤스로픽", "앤트로픽", "클로드", "Claude"]
   - keyword: "Google"
     weight: 1.2
+    aliases: ["구글", "제미나이", "Gemini", "알파벳", "딥마인드", "DeepMind"]
   - keyword: "NVIDIA"
     weight: 1.4
+    aliases: ["엔비디아", "젠슨 황", "GPU", "지포스"]
   - keyword: "미국 정책"
     weight: 1.2
+    aliases: ["트럼프", "Trump", "연준", "Fed", "관세", "백악관"]
   - keyword: "캐나다 이민"
     weight: 1.3
+    aliases: ["캐나다 영주권", "캐나다 비자", "이민 정책"]
   - keyword: "반도체"
     weight: 1.4
+    aliases: ["HBM", "파운드리", "메모리 반도체", "삼성전자", "SK하이닉스",
+              "TSMC", "칩", "웨이퍼"]
   - keyword: "경제"
     weight: 1.0
+    aliases: ["금리", "환율", "물가", "인플레이션", "코스피", "증시", "부동산"]
 
 # 신뢰도 낮은(low) 소스로만 구성된 이벤트를 "그 외 주요 이슈"에서 제외할지 여부.
 # 관심사 키워드에 걸린 이벤트에는 이 필터를 적용하지 않는다

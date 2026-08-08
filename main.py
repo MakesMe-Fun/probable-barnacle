@@ -70,7 +70,18 @@ def main(open_browser: bool = True) -> None:
     # "관심사는 빠짐없이 + 그 외는 중요한 것만"이라는 기준을 여기서 확정한다.
     logger.info("=== 3단계: 사전 선별 (관심사 / 주요이슈) ===")
     interests_cfg = ranker.load_interests(str(INTERESTS_CONFIG))
-    budget = getattr(client, "daily_request_budget", None)
+    # 예산은 '호출 수'로 주어지는데 한 호출에 여러 사건을 묶어 보내므로,
+    # 실제로 분석 가능한 사건 수는 호출 수 × 배치 크기다.
+    requests_left = getattr(client, "daily_request_budget", None)
+    batch_size = max(1, getattr(client, "batch_size", 1))
+    budget = requests_left * batch_size if requests_left is not None else None
+    if budget is not None:
+        logger.info(
+            "  오늘 분석 가능 사건 수: 약 %d건 (호출 %d회 × 배치 %d건)",
+            budget,
+            requests_left,
+            batch_size,
+        )
     selected = prefilter.triage_clusters(clusters, source_registry, interests_cfg, budget=budget)
 
     if not selected:
@@ -79,34 +90,19 @@ def main(open_browser: bool = True) -> None:
 
     # ── 4. 분석 (LLM) ───────────────────────────────────
     logger.info("=== 4단계: 이슈 분석 (%s) ===", client.name)
+
+    def _progress(done: int, size: int) -> None:
+        logger.info("  %d~%d / %d 분석 중...", done + 1, done + size, len(selected))
+
+    analyses = analyzer.analyze_clusters(
+        client, [item["cluster"] for item in selected], on_progress=_progress
+    )
+
     event_payloads = []
-    for i, item in enumerate(selected, start=1):
-        cluster = item["cluster"]
-        logger.info(
-            "  [%s] %d/%d 분석 중 (기사 %d건)%s",
-            "관심사" if item["bucket"] == "interest" else "주요이슈",
-            i,
-            len(selected),
-            len(cluster),
-            f" · 키워드 {', '.join(item['matched_keywords'])}" if item["matched_keywords"] else "",
-        )
-        try:
-            analysis = analyzer.analyze_cluster(client, cluster)
-        except analyzer.QuotaExhausted as e:
-            logger.error(
-                "Groq API 한도에 걸려 %d/%d에서 분석을 중단합니다. 상세: %s",
-                i,
-                len(selected),
-                e,
-            )
-            logger.error(
-                "  한도가 리셋된 뒤 다시 실행하거나, config/interests.yaml의 "
-                "max_interest_events / top_general_events에 상한을 걸어 호출 수를 낮춰주세요."
-            )
-            break
+    for item, analysis in zip(selected, analyses):
         if analysis is None:
             continue
-        payload = analyzer.build_event_payload(cluster, analysis)
+        payload = analyzer.build_event_payload(item["cluster"], analysis)
         payload["bucket"] = item["bucket"]
         payload["prefilter_keywords"] = item["matched_keywords"]
         event_payloads.append(payload)
